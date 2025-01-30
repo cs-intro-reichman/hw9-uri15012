@@ -4,7 +4,7 @@
 public class Node {
 
 	MemoryBlock block;  // The memory block that this node points at
-	Node next = null;   // The next node in the list
+	Node next = null;   // The next node in the list 
 
 	/**
 	 * Constructs a new node, pointing to the given memory block.

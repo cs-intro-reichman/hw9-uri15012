@@ -1,3 +1,6 @@
+import java.util.Arrays;
+import java.util.Comparator;
+
 /**
  * Represents a managed memory space. The memory space manages a list of allocated 
  * memory blocks, and a list free memory blocks. The methods "malloc" and "free" are 
@@ -58,8 +61,37 @@ public class MemorySpace {
 	 * @return the base address of the allocated block, or -1 if unable to allocate
 	 */
 	public int malloc(int length) {		
-		//// Replace the following statement with your code
-		return -1;
+		if (length <= 0) {
+			return -1;
+		}
+	
+		ListIterator it = freeList.iterator(); // Create an iterator for the free list.
+	
+		while (it.hasNext()) {
+			MemoryBlock freeBlock = it.next(); // Get the next free memory block.
+	
+			if (freeBlock.length >= length) {
+				int baseAddress = freeBlock.baseAddress; // Store the base address to return.
+	
+				// Case 1: Exact match, remove the block from the free list.
+				if (freeBlock.length == length) {
+					freeList.remove(freeBlock); 
+				}
+				// Case 2: Free block is larger, modify its properties.
+				else {
+					freeBlock.baseAddress += length; // Move the base address forward.
+					freeBlock.length -= length; // Reduce the size of the free block.
+				}
+	
+				// Create a new allocated block and add it to the allocated list.
+				MemoryBlock allocatedBlock = new MemoryBlock(baseAddress, length);
+				allocatedList.addLast(allocatedBlock);
+	
+				return baseAddress; // Return the base address of the allocated block.
+			}
+		}
+	
+		return -1; // No suitable block found.
 	}
 
 	/**
@@ -71,8 +103,24 @@ public class MemorySpace {
 	 *            the starting address of the block to freeList
 	 */
 	public void free(int address) {
-		//// Write your code here
+		ListIterator it = allocatedList.iterator(); // Create an iterator for allocated blocks
+		if (it.current == null) {
+			throw new IllegalArgumentException( "index must be between 0 and size");
+		}
+		
+	
+		while (it.hasNext()) {
+			MemoryBlock allocatedBlock = it.next();
+	
+			// If a block with the given base address is found
+			if (allocatedBlock.baseAddress == address) {
+				allocatedList.remove(allocatedBlock); // Remove from allocated list
+				freeList.addLast(allocatedBlock); // Add to the end of free list
+				return; // Exit after freeing the memory block
+			}
+		}
 	}
+	
 	
 	/**
 	 * A textual representation of the free list and the allocated list of this memory space, 
@@ -88,6 +136,70 @@ public class MemorySpace {
 	 * In this implementation Malloc does not call defrag.
 	 */
 	public void defrag() {
-		//// Write your code here
+		if (freeList.getSize() <= 1) {
+			return; // No need to defragment if there are 0 or 1 blocks
+		}
+	
+		// Extract and copy all memory blocks into a temporary array for processing
+		ListIterator it = freeList.iterator();
+		MemoryBlock[] blocks = new MemoryBlock[freeList.getSize()];
+		int i = 0;
+	
+		while (it.hasNext()) {
+			MemoryBlock block = it.next();
+			blocks[i++] = new MemoryBlock(block.baseAddress, block.length); // Create fresh copies
+		}
+	
+		// Sort the array of blocks by base address
+		Arrays.sort(blocks, Comparator.comparingInt(block -> block.baseAddress));
+	
+		// Clear the original freeList to rebuild it
+		freeList = new LinkedList();
+	
+		// Traverse the sorted blocks and merge adjacent ones
+		MemoryBlock current = blocks[0];
+		for (i = 1; i < blocks.length; i++) {
+			MemoryBlock next = blocks[i];
+	
+			// If adjacent, merge the blocks
+			if (current.baseAddress + current.length == next.baseAddress) {
+				current.length += next.length; // Extend the current block
+			} else {
+				// Add the non-adjacent block to the freeList
+				freeList.addLast(current);
+				current = next; // Move to the next block
+			}
+		}
+	
+		// Add the last merged or standalone block to the freeList
+		freeList.addLast(current);
 	}
+
+	/**
+ * Sorts a LinkedList of MemoryBlock objects by base address.
+ * 
+ * @param list the list to sort
+ */
+private void sortListByBaseAddress(LinkedList list) {
+    if (list.getSize() <= 1) {
+        return; // No need to sort if list has 0 or 1 element
+    }
+
+    MemoryBlock[] blocks = new MemoryBlock[list.getSize()];
+    ListIterator it = list.iterator();
+    int i = 0;
+
+    while (it.hasNext()) {
+        blocks[i++] = it.next();
+    }
+
+    // Sort the blocks array by base address
+    Arrays.sort(blocks, Comparator.comparingInt(block -> block.baseAddress));
+
+    // Clear and rebuild the list in sorted order
+    list = new LinkedList(); // Reset the list
+    for (MemoryBlock block : blocks) {
+        list.addLast(block);
+    }
+}
 }
